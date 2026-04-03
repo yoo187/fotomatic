@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrecisionCut PRO | Tracking Edition</title>
+    <title>PrecisionCut PRO | Mobile Zoom Edition</title>
     <style>
         :root {
             --accent: #f39c12;
@@ -20,53 +20,65 @@
         body { 
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
             margin: 0; background: var(--bg); color: var(--text);
-            line-height: 1.5;
+            line-height: 1.5; overflow-x: hidden;
         }
 
         header { 
-            padding: 15px 25px; background: #000; 
+            padding: 10px 20px; background: #000; 
             border-bottom: 2px solid var(--accent);
             display: flex; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; z-index: 1000;
+            position: sticky; top: 0; z-index: 2000;
         }
-        .logo { font-weight: 900; color: var(--accent); font-size: 1.2rem; letter-spacing: 1px; }
+        .logo { font-weight: 900; color: var(--accent); font-size: 1rem; letter-spacing: 1px; }
         
-        #stats-container { display: flex; gap: 15px; font-size: 0.85rem; font-weight: bold; }
-        .stat-pill { background: #333; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); }
+        #stats-container { display: flex; gap: 8px; font-size: 0.7rem; font-weight: bold; }
+        .stat-pill { background: #333; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); }
         .stat-done { color: var(--success); border-color: var(--success); }
 
         .main-wrapper { 
-            display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px;
+            display: grid; grid-template-columns: 1fr; gap: 20px; padding: 15px;
             max-width: 1600px; margin: 0 auto;
         }
 
         @media (min-width: 1100px) {
-            .main-wrapper { grid-template-columns: 400px 1fr; }
-            .sidebar { position: sticky; top: 90px; }
+            .main-wrapper { grid-template-columns: 380px 1fr; }
+            .sidebar { position: sticky; top: 75px; height: calc(100vh - 100px); overflow-y: auto; }
         }
 
-        .panel { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); padding: 25px; }
-        h3 { margin: 0 0 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .panel { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); padding: 20px; }
+        h3 { margin: 0 0 15px; font-size: 0.8rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
         
-        .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .input-group label { display: block; font-size: 0.75rem; color: #bbb; margin-bottom: 6px; font-weight: 600; }
-        input { background: #000; border: 1px solid #444; color: var(--accent); padding: 12px; border-radius: 4px; font-size: 1.1rem; width: 100%; font-weight: bold; }
+        .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .input-group label { display: block; font-size: 0.7rem; color: #bbb; margin-bottom: 4px; font-weight: 600; }
+        input { background: #000; border: 1px solid #444; color: var(--accent); padding: 10px; border-radius: 4px; font-size: 1rem; width: 100%; font-weight: bold; }
 
-        #piece-list { max-height: 400px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px; }
-        .piece-box { background: var(--surface-card); padding: 20px; border-radius: 6px; margin-bottom: 12px; border-left: 4px solid var(--accent); position: relative; }
+        #piece-list { margin-bottom: 15px; }
+        .piece-box { background: var(--surface-card); padding: 15px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid var(--accent); position: relative; }
 
-        .btn { padding: 15px; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.2s; text-transform: uppercase; }
-        .btn-add { background: transparent; color: var(--success); border: 2px solid var(--success); margin-bottom: 12px; }
-        .btn-calc { background: var(--accent); color: #000; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3); }
-        .btn-del { position: absolute; right: 10px; top: 10px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
+        .btn { padding: 12px; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.2s; text-transform: uppercase; font-size: 0.8rem; }
+        .btn-add { background: transparent; color: var(--success); border: 2px solid var(--success); margin-bottom: 10px; }
+        .btn-calc { background: var(--accent); color: #000; box-shadow: 0 4px 12px rgba(243, 156, 18, 0.2); }
+        .btn-del { position: absolute; right: 8px; top: 8px; color: var(--danger); background: none; border: none; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
 
-        .plate-card { background: #fff; border-radius: 8px; padding: 20px; color: #000; margin-bottom: 40px; border: 1px solid #ccc; }
-        .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .plate-num { font-size: 1.5rem; font-weight: 900; }
-        .plate-dim { font-size: 1rem; color: #444; font-weight: 600; }
+        .plate-card { background: #fff; border-radius: 8px; padding: 15px; color: #000; margin-bottom: 25px; border: 1px solid #ccc; transition: transform 0.3s ease; }
+        
+        /* ZOOM LOGICA */
+        .plate-card.zoomed {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 3000; margin: 0; border-radius: 0; overflow: auto;
+            display: flex; flex-direction: column; background: #fff;
+        }
+        .plate-card.zoomed canvas { width: auto; height: 90vh; margin: auto; }
 
-        canvas { width: 100%; height: auto; border: 2px solid #000; background: #eee; display: block; cursor: crosshair; }
-        .welcome-msg { text-align: center; padding: 80px; color: #666; font-size: 1.2rem; }
+        .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+        .plate-num { font-size: 1.2rem; font-weight: 900; }
+        .plate-dim { font-size: 0.9rem; color: #444; font-weight: 600; }
+
+        canvas { width: 100%; height: auto; border: 1px solid #000; background: #eee; display: block; cursor: zoom-in; }
+        .zoomed canvas { cursor: zoom-out; }
+
+        .welcome-msg { text-align: center; padding: 60px; color: #666; font-size: 1rem; }
+        .zoom-hint { font-size: 0.7rem; color: #888; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -74,43 +86,42 @@
 <header>
     <div class="logo">PRECISIONCUT <span style="font-weight:300; color:#fff">PRO</span></div>
     <div id="stats-container">
-        <div class="stat-pill" id="stat-total">0 STUKS</div>
-        <div class="stat-pill" id="stat-plates">0 PLATEN</div>
-        <div class="stat-pill stat-done" id="stat-done">0 KLAAR</div>
+        <div class="stat-pill" id="stat-total">0</div>
+        <div class="stat-pill" id="stat-plates">0 P</div>
+        <div class="stat-pill stat-done" id="stat-done">0 OK</div>
     </div>
 </header>
 
 <div class="main-wrapper">
     <div class="sidebar">
         <div class="panel">
-            <h3>Plaat Afmetingen</h3>
+            <h3>Plaat Instellingen</h3>
             <div class="input-row">
-                <div class="input-group"><label>LENGTE (mm)</label><input type="number" id="sW" value="2440" oninput="saveAndRun()"></div>
-                <div class="input-group"><label>BREEDTE (mm)</label><input type="number" id="sH" value="1220" oninput="saveAndRun()"></div>
+                <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2440" oninput="saveAndRun()"></div>
+                <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1220" oninput="saveAndRun()"></div>
             </div>
-            <div class="input-group" style="margin-bottom: 25px;">
-                <label>ZAAGSNEDE / KERF (mm)</label>
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label>ZAAGSNEDE (mm)</label>
                 <input type="number" id="kerf" value="3.2" step="0.1" oninput="saveAndRun()">
             </div>
 
-            <h3>Onderdelen Lijst</h3>
+            <h3>Onderdelen</h3>
             <div id="piece-list"></div>
             <button class="btn btn-add" onclick="addPiece(); saveAndRun();">+ MAAT TOEVOEGEN</button>
-            <button class="btn btn-calc" onclick="runEngine()">🚀 HERBEREKEN PLAN</button>
+            <button class="btn btn-calc" onclick="runEngine()">🚀 UPDATE PLAN</button>
         </div>
     </div>
-    <div id="output-view">
-        <div class="welcome-msg">Start met het invoeren van maten. Alles wordt automatisch bewaard.</div>
+    <div id="output-view-container">
+        <div id="output-view">
+            <div class="welcome-msg">Voer maten in. Tik op een plaat om in te zoomen.</div>
+        </div>
     </div>
 </div>
 
 <script>
     let currentPlates = [];
 
-    function saveAndRun() {
-        saveToStorage();
-        runEngine();
-    }
+    function saveAndRun() { saveToStorage(); runEngine(); }
 
     function saveToStorage() {
         const data = {
@@ -126,15 +137,12 @@
                 qty: box.querySelector('.pQty').value
             });
         });
-        localStorage.setItem('precisionCutData_v2', JSON.stringify(data));
+        localStorage.setItem('precisionCut_Mobile', JSON.stringify(data));
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('precisionCutData_v2');
-        if (!saved) {
-            addPiece(800, 500, 4);
-            return;
-        }
+        const saved = localStorage.getItem('precisionCut_Mobile');
+        if (!saved) { addPiece(800, 500, 4); return; }
         const data = JSON.parse(saved);
         document.getElementById('sW').value = data.sW;
         document.getElementById('sH').value = data.sH;
@@ -148,7 +156,7 @@
         const div = document.createElement('div');
         div.className = 'piece-box';
         div.innerHTML = `
-            <button class="btn-del" onclick="this.parentElement.remove(); saveAndRun();">VERWIJDER</button>
+            <button class="btn-del" onclick="this.parentElement.remove(); saveAndRun();">X</button>
             <div class="input-row">
                 <div class="input-group"><label>LENGTE</label><input type="number" class="pW" value="${w}" oninput="saveAndRun()"></div>
                 <div class="input-group"><label>BREEDTE</label><input type="number" class="pH" value="${h}" oninput="saveAndRun()"></div>
@@ -162,25 +170,14 @@
         const sW = parseInt(document.getElementById('sW').value) || 0;
         const sH = parseInt(document.getElementById('sH').value) || 0;
         const kerf = parseFloat(document.getElementById('kerf').value) || 0;
-        
         let pool = [];
         document.querySelectorAll('.piece-box').forEach(box => {
             const w = parseInt(box.querySelector('.pW').value);
             const h = parseInt(box.querySelector('.pH').value);
             const qty = parseInt(box.querySelector('.pQty').value);
-            if(w > 0 && h > 0 && qty > 0) {
-                for(let i=0; i<qty; i++) {
-                    pool.push({w: Math.max(w,h), h: Math.min(w,h), area: w*h});
-                }
-            }
+            if(w > 0 && h > 0 && qty > 0) for(let i=0; i<qty; i++) pool.push({w: Math.max(w,h), h: Math.min(w,h), area: w*h});
         });
-
-        if(pool.length === 0) {
-            document.getElementById('output-view').innerHTML = '<div class="welcome-msg">Geen geldige onderdelen gevonden.</div>';
-            updateStats(0, 0, 0);
-            return;
-        }
-
+        if(pool.length === 0) return;
         pool.sort((a,b) => b.area - a.area);
         currentPlates = [];
         let remainingItems = [...pool];
@@ -189,10 +186,7 @@
             let plate = { w: sW, h: sH, parts: [], freeSpaces: [{x:0, y:0, w:sW, h:sH}] };
             for(let i=0; i < remainingItems.length; i++) {
                 let item = remainingItems[i];
-                let bestSpaceIdx = -1;
-                let bestOrient = null;
-                let minWaste = Infinity;
-
+                let bestSpaceIdx = -1, bestOrient = null, minWaste = Infinity;
                 for(let j=0; j < plate.freeSpaces.length; j++) {
                     let space = plate.freeSpaces[j];
                     let orients = [{w: item.w, h: item.h}, {w: item.h, h: item.w}];
@@ -203,7 +197,6 @@
                         }
                     }
                 }
-
                 if(bestSpaceIdx !== -1) {
                     let space = plate.freeSpaces[bestSpaceIdx];
                     plate.parts.push({ x: space.x, y: space.y, w: bestOrient.w, h: bestOrient.h, done: false });
@@ -216,56 +209,50 @@
                         if (space.w - bestOrient.w - kerf > 0) newS.push({x: space.x + bestOrient.w + kerf, y: space.y, w: space.w - bestOrient.w - kerf, h: bestOrient.h});
                     }
                     plate.freeSpaces.splice(bestSpaceIdx, 1, ...newS);
-                    remainingItems.splice(i, 1);
-                    i--;
+                    remainingItems.splice(i, 1); i--;
                 }
             }
             plate.rests = plate.freeSpaces.filter(s => s.w > 5 && s.h > 5);
             currentPlates.push(plate);
-            if(currentPlates.length > 100) break; 
+            if(currentPlates.length > 50) break;
         }
         render();
     }
 
-    function updateStats() {
-        let totalItems = 0;
-        let doneItems = 0;
-        currentPlates.forEach(p => {
-            totalItems += p.parts.length;
-            doneItems += p.parts.filter(part => part.done).length;
-        });
-
-        document.getElementById('stat-total').innerText = `${totalItems} STUKS`;
-        document.getElementById('stat-plates').innerText = `${currentPlates.length} PLATEN`;
-        document.getElementById('stat-done').innerText = `${doneItems} KLAAR`;
-    }
-
     function render() {
         const view = document.getElementById('output-view');
+        const oldZoomedIdx = Array.from(document.querySelectorAll('.plate-card')).findIndex(c => c.classList.contains('zoomed'));
         view.innerHTML = '';
+        
         currentPlates.forEach((plate, idx) => {
             const card = document.createElement('div');
-            card.className = 'plate-card';
-            card.innerHTML = `<div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}mm</span></div>`;
+            card.className = 'plate-card' + (idx === oldZoomedIdx ? ' zoomed' : '');
+            card.innerHTML = `
+                <div class="plate-info"><span class="plate-num">#${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}mm</span></div>
+                <div class="zoom-hint">Tik op de plaat voor zoom / Klaar-vinkje</div>
+            `;
             const canvas = document.createElement('canvas');
             canvas.width = plate.w; canvas.height = plate.h;
             const ctx = canvas.getContext('2d');
 
+            // Rests
             plate.rests.forEach(r => {
                 ctx.fillStyle = "#fcfcfc"; ctx.fillRect(r.x, r.y, r.w, r.h);
                 ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
-                for(let i = -r.h; i < r.w; i += 40) { ctx.beginPath(); ctx.moveTo(r.x + i, r.y); ctx.lineTo(r.x + i + r.h, r.y + r.h); ctx.stroke(); }
+                for(let i = -r.h; i < r.w; i += 50) { ctx.beginPath(); ctx.moveTo(r.x + i, r.y); ctx.lineTo(r.x + i + r.h, r.y + r.h); ctx.stroke(); }
             });
 
+            // Parts
             plate.parts.forEach(p => {
                 ctx.fillStyle = p.done ? "#e8f6ef" : "#ffffff";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.strokeStyle = p.done ? "#27ae60" : "#000000";
-                ctx.lineWidth = Math.max(2, plate.w / 400);
+                ctx.strokeStyle = p.done ? "#27ae60" : "#000";
+                ctx.lineWidth = Math.max(4, plate.w / 300);
                 ctx.strokeRect(p.x, p.y, p.w, p.h);
                 
+                // Tekst schalen voor mobiel
                 ctx.fillStyle = p.done ? "#27ae60" : "#000";
-                let fSize = Math.min(p.w/5, p.h/3, 60);
+                let fSize = Math.max(30, Math.min(p.w/6, p.h/4));
                 ctx.font = `bold ${fSize}px sans-serif`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -276,18 +263,31 @@
                 const rect = canvas.getBoundingClientRect();
                 const x = (e.clientX - rect.left) * (plate.w / rect.width);
                 const y = (e.clientY - rect.top) * (plate.h / rect.height);
+                
+                let found = false;
                 plate.parts.forEach(p => {
                     if(x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) {
                         p.done = !p.done;
-                        if(window.navigator.vibrate) window.navigator.vibrate(20);
-                        render();
+                        found = true;
                     }
                 });
+
+                if (!found) {
+                    card.classList.toggle('zoomed');
+                    document.body.style.overflow = card.classList.contains('zoomed') ? 'hidden' : 'auto';
+                }
+                render();
             };
+
             card.appendChild(canvas);
             view.appendChild(card);
         });
-        updateStats();
+        
+        let total = 0, done = 0;
+        currentPlates.forEach(p => { total += p.parts.length; done += p.parts.filter(x => x.done).length; });
+        document.getElementById('stat-total').innerText = total;
+        document.getElementById('stat-plates').innerText = currentPlates.length + ' P';
+        document.getElementById('stat-done').innerText = done + ' OK';
     }
 
     window.onload = loadFromStorage;
