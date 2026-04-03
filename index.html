@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrecisionCut PRO | Mobile Zoom Edition</title>
+    <title>PrecisionCut PRO | Auto-Split Edition</title>
     <style>
         :root {
             --accent: #f39c12;
@@ -52,7 +52,6 @@
         .input-group label { display: block; font-size: 0.7rem; color: #bbb; margin-bottom: 4px; font-weight: 600; }
         input { background: #000; border: 1px solid #444; color: var(--accent); padding: 10px; border-radius: 4px; font-size: 1rem; width: 100%; font-weight: bold; }
 
-        #piece-list { margin-bottom: 15px; }
         .piece-box { background: var(--surface-card); padding: 15px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid var(--accent); position: relative; }
 
         .btn { padding: 12px; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.2s; text-transform: uppercase; font-size: 0.8rem; }
@@ -62,7 +61,6 @@
 
         .plate-card { background: #fff; border-radius: 8px; padding: 15px; color: #000; margin-bottom: 25px; border: 1px solid #ccc; transition: transform 0.3s ease; }
         
-        /* ZOOM LOGICA */
         .plate-card.zoomed {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 3000; margin: 0; border-radius: 0; overflow: auto;
@@ -75,10 +73,8 @@
         .plate-dim { font-size: 0.9rem; color: #444; font-weight: 600; }
 
         canvas { width: 100%; height: auto; border: 1px solid #000; background: #eee; display: block; cursor: zoom-in; }
-        .zoomed canvas { cursor: zoom-out; }
-
         .welcome-msg { text-align: center; padding: 60px; color: #666; font-size: 1rem; }
-        .zoom-hint { font-size: 0.7rem; color: #888; text-align: center; margin-top: 5px; }
+        .split-notice { font-size: 0.65rem; color: var(--accent); margin-top: 5px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -97,8 +93,8 @@
         <div class="panel">
             <h3>Plaat Instellingen</h3>
             <div class="input-row">
-                <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2440" oninput="saveAndRun()"></div>
-                <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1220" oninput="saveAndRun()"></div>
+                <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2500" oninput="saveAndRun()"></div>
+                <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1250" oninput="saveAndRun()"></div>
             </div>
             <div class="input-group" style="margin-bottom: 20px;">
                 <label>ZAAGSNEDE (mm)</label>
@@ -111,10 +107,8 @@
             <button class="btn btn-calc" onclick="runEngine()">🚀 UPDATE PLAN</button>
         </div>
     </div>
-    <div id="output-view-container">
-        <div id="output-view">
-            <div class="welcome-msg">Voer maten in. Tik op een plaat om in te zoomen.</div>
-        </div>
+    <div id="output-view">
+        <div class="welcome-msg">Te lange stukken worden automatisch gesplitst over meerdere platen.</div>
     </div>
 </div>
 
@@ -137,12 +131,12 @@
                 qty: box.querySelector('.pQty').value
             });
         });
-        localStorage.setItem('precisionCut_Mobile', JSON.stringify(data));
+        localStorage.setItem('precisionCut_Split', JSON.stringify(data));
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('precisionCut_Mobile');
-        if (!saved) { addPiece(800, 500, 4); return; }
+        const saved = localStorage.getItem('precisionCut_Split');
+        if (!saved) { addPiece(2800, 50, 1); return; }
         const data = JSON.parse(saved);
         document.getElementById('sW').value = data.sW;
         document.getElementById('sH').value = data.sH;
@@ -162,6 +156,7 @@
                 <div class="input-group"><label>BREEDTE</label><input type="number" class="pH" value="${h}" oninput="saveAndRun()"></div>
             </div>
             <div class="input-group"><label>AANTAL</label><input type="number" class="pQty" value="${qty}" oninput="saveAndRun()"></div>
+            <div class="split-notice" style="display:none">⚠️ Stuk wordt gesplitst</div>
         `;
         document.getElementById('piece-list').appendChild(div);
     }
@@ -170,13 +165,37 @@
         const sW = parseInt(document.getElementById('sW').value) || 0;
         const sH = parseInt(document.getElementById('sH').value) || 0;
         const kerf = parseFloat(document.getElementById('kerf').value) || 0;
+        const maxDim = Math.max(sW, sH);
+        
         let pool = [];
         document.querySelectorAll('.piece-box').forEach(box => {
-            const w = parseInt(box.querySelector('.pW').value);
-            const h = parseInt(box.querySelector('.pH').value);
-            const qty = parseInt(box.querySelector('.pQty').value);
-            if(w > 0 && h > 0 && qty > 0) for(let i=0; i<qty; i++) pool.push({w: Math.max(w,h), h: Math.min(w,h), area: w*h});
+            let w = parseInt(box.querySelector('.pW').value) || 0;
+            let h = parseInt(box.querySelector('.pH').value) || 0;
+            const qty = parseInt(box.querySelector('.pQty').value) || 0;
+            const notice = box.querySelector('.split-notice');
+
+            if(w > 0 && h > 0 && qty > 0) {
+                // Check of splitsing nodig is (alleen op de langste zijde)
+                if (w > maxDim || h > maxDim) {
+                    notice.style.display = 'block';
+                    let targetDim = (w > h) ? w : h;
+                    let staticDim = (w > h) ? h : w;
+                    
+                    for(let q=0; q<qty; q++) {
+                        let tempDim = targetDim;
+                        while(tempDim > 0) {
+                            let partSize = Math.min(tempDim, maxDim);
+                            pool.push({w: partSize, h: staticDim, area: partSize * staticDim});
+                            tempDim -= partSize;
+                        }
+                    }
+                } else {
+                    notice.style.display = 'none';
+                    for(let i=0; i<qty; i++) pool.push({w: Math.max(w,h), h: Math.min(w,h), area: w*h});
+                }
+            }
         });
+
         if(pool.length === 0) return;
         pool.sort((a,b) => b.area - a.area);
         currentPlates = [];
@@ -186,29 +205,30 @@
             let plate = { w: sW, h: sH, parts: [], freeSpaces: [{x:0, y:0, w:sW, h:sH}] };
             for(let i=0; i < remainingItems.length; i++) {
                 let item = remainingItems[i];
-                let bestSpaceIdx = -1, bestOrient = null, minWaste = Infinity;
+                let bestIdx = -1, bestO = null, minW = Infinity;
+                
                 for(let j=0; j < plate.freeSpaces.length; j++) {
-                    let space = plate.freeSpaces[j];
+                    let s = plate.freeSpaces[j];
                     let orients = [{w: item.w, h: item.h}, {w: item.h, h: item.w}];
                     for(let o of orients) {
-                        if(o.w <= space.w && o.h <= space.h) {
-                            let waste = (space.w * space.h) - (o.w * o.h);
-                            if(waste < minWaste) { minWaste = waste; bestSpaceIdx = j; bestOrient = o; }
+                        if(o.w <= s.w && o.h <= s.h) {
+                            let w = (s.w * s.h) - (o.w * o.h);
+                            if(w < minW) { minW = w; bestIdx = j; bestO = o; }
                         }
                     }
                 }
-                if(bestSpaceIdx !== -1) {
-                    let space = plate.freeSpaces[bestSpaceIdx];
-                    plate.parts.push({ x: space.x, y: space.y, w: bestOrient.w, h: bestOrient.h, done: false });
+                if(bestIdx !== -1) {
+                    let s = plate.freeSpaces[bestIdx];
+                    plate.parts.push({ x: s.x, y: s.y, w: bestO.w, h: bestO.h, done: false });
                     let newS = [];
-                    if (space.w - bestOrient.w > space.h - bestOrient.h) {
-                        if (space.w - bestOrient.w - kerf > 0) newS.push({x: space.x + bestOrient.w + kerf, y: space.y, w: space.w - bestOrient.w - kerf, h: space.h});
-                        if (space.h - bestOrient.h - kerf > 0) newS.push({x: space.x, y: space.y + bestOrient.h + kerf, w: bestOrient.w, h: space.h - bestOrient.h - kerf});
+                    if (s.w - bestO.w > s.h - bestO.h) {
+                        if (s.w - bestO.w - kerf > 0) newS.push({x: s.x + bestO.w + kerf, y: s.y, w: s.w - bestO.w - kerf, h: s.h});
+                        if (s.h - bestO.h - kerf > 0) newS.push({x: s.x, y: s.y + bestO.h + kerf, w: bestO.w, h: s.h - bestO.h - kerf});
                     } else {
-                        if (space.h - bestOrient.h - kerf > 0) newS.push({x: space.x, y: space.y + bestOrient.h + kerf, w: space.w, h: space.h - bestOrient.h - kerf});
-                        if (space.w - bestOrient.w - kerf > 0) newS.push({x: space.x + bestOrient.w + kerf, y: space.y, w: space.w - bestOrient.w - kerf, h: bestOrient.h});
+                        if (s.h - bestO.h - kerf > 0) newS.push({x: s.x, y: s.y + bestO.h + kerf, w: s.w, h: s.h - bestO.h - kerf});
+                        if (s.w - bestO.w - kerf > 0) newS.push({x: s.x + bestO.w + kerf, y: s.y, w: s.w - bestO.w - kerf, h: bestO.h});
                     }
-                    plate.freeSpaces.splice(bestSpaceIdx, 1, ...newS);
+                    plate.freeSpaces.splice(bestIdx, 1, ...newS);
                     remainingItems.splice(i, 1); i--;
                 }
             }
@@ -221,36 +241,28 @@
 
     function render() {
         const view = document.getElementById('output-view');
-        const oldZoomedIdx = Array.from(document.querySelectorAll('.plate-card')).findIndex(c => c.classList.contains('zoomed'));
         view.innerHTML = '';
         
         currentPlates.forEach((plate, idx) => {
             const card = document.createElement('div');
-            card.className = 'plate-card' + (idx === oldZoomedIdx ? ' zoomed' : '');
-            card.innerHTML = `
-                <div class="plate-info"><span class="plate-num">#${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}mm</span></div>
-                <div class="zoom-hint">Tik op de plaat voor zoom / Klaar-vinkje</div>
-            `;
+            card.className = 'plate-card';
+            card.innerHTML = `<div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}mm</span></div>`;
             const canvas = document.createElement('canvas');
             canvas.width = plate.w; canvas.height = plate.h;
             const ctx = canvas.getContext('2d');
 
-            // Rests
             plate.rests.forEach(r => {
                 ctx.fillStyle = "#fcfcfc"; ctx.fillRect(r.x, r.y, r.w, r.h);
                 ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
                 for(let i = -r.h; i < r.w; i += 50) { ctx.beginPath(); ctx.moveTo(r.x + i, r.y); ctx.lineTo(r.x + i + r.h, r.y + r.h); ctx.stroke(); }
             });
 
-            // Parts
             plate.parts.forEach(p => {
                 ctx.fillStyle = p.done ? "#e8f6ef" : "#ffffff";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
                 ctx.strokeStyle = p.done ? "#27ae60" : "#000";
-                ctx.lineWidth = Math.max(4, plate.w / 300);
+                ctx.lineWidth = Math.max(4, plate.w / 400);
                 ctx.strokeRect(p.x, p.y, p.w, p.h);
-                
-                // Tekst schalen voor mobiel
                 ctx.fillStyle = p.done ? "#27ae60" : "#000";
                 let fSize = Math.max(30, Math.min(p.w/6, p.h/4));
                 ctx.font = `bold ${fSize}px sans-serif`;
@@ -263,22 +275,15 @@
                 const rect = canvas.getBoundingClientRect();
                 const x = (e.clientX - rect.left) * (plate.w / rect.width);
                 const y = (e.clientY - rect.top) * (plate.h / rect.height);
-                
-                let found = false;
+                let hit = false;
                 plate.parts.forEach(p => {
                     if(x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) {
-                        p.done = !p.done;
-                        found = true;
+                        p.done = !p.done; hit = true;
                     }
                 });
-
-                if (!found) {
-                    card.classList.toggle('zoomed');
-                    document.body.style.overflow = card.classList.contains('zoomed') ? 'hidden' : 'auto';
-                }
+                if(!hit) card.classList.toggle('zoomed');
                 render();
             };
-
             card.appendChild(canvas);
             view.appendChild(card);
         });
