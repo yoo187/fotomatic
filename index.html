@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrecisionCut PRO | MDF Edition</title>
+    <title>PrecisionCut PRO | Reststukken Edition</title>
     <style>
         :root {
             --accent: #f39c12;
@@ -13,9 +13,8 @@
             --text: #e0e0e0;
             --border: #333;
             --success: #27ae60;
-            --mdf-brown: #bc8f4f; /* Klassieke MDF kleur */
-            --mdf-light: #d2b48c;
-            --mdf-dark: #8b5a2b;
+            --mdf-brown: #bc8f4f;
+            --rest-bg: #2a2a2a;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -26,8 +25,7 @@
         }
 
         header { 
-            padding: 10px 15px; background: #000; 
-            border-bottom: 2px solid var(--accent);
+            padding: 10px 15px; background: #000; border-bottom: 2px solid var(--accent);
             display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 4000;
         }
@@ -60,24 +58,13 @@
         .btn-calc { background: var(--accent); color: #000; }
         .btn-del { position: absolute; right: 5px; top: 5px; color: #e74c3c; background: none; border: none; font-weight: bold; cursor: pointer; }
 
-        .plate-container { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 8px; }
-        
         .plate-card { 
             background: #2a2a2a; border-radius: 8px; padding: 10px; color: #000; 
-            margin-bottom: 20px; border: 1px solid #444; 
-            cursor: zoom-in;
-            transform-origin: top left;
-            width: 100%;
-            position: relative;
+            margin-bottom: 20px; border: 1px solid #444; cursor: zoom-in;
+            transform-origin: top left; width: 100%; position: relative;
         }
 
-        .plate-card.zoomed {
-            width: 200%;
-            z-index: 10;
-            cursor: zoom-out;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-        }
-
+        .plate-card.zoomed { width: 200%; z-index: 10; cursor: zoom-out; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
         .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; border-bottom: 1px solid #555; padding-bottom: 5px; color: #fff; }
         .plate-num { font-size: 1.1rem; font-weight: 900; color: var(--accent); }
         .plate-dim { font-size: 0.8rem; font-weight: 600; opacity: 0.8; }
@@ -88,7 +75,7 @@
 <body>
 
 <header>
-    <div class="logo">PRECISIONCUT PRO <span style="font-weight:300; font-size: 0.7rem; color: #888;">MDF-MODE</span></div>
+    <div class="logo">PRECISIONCUT PRO <span style="font-weight:300; font-size: 0.7rem; color: #888;">MDF + REST</span></div>
     <div id="stats-container">
         <div class="stat-pill" id="stat-total">0</div>
         <div class="stat-pill" id="stat-plates">0 P</div>
@@ -99,7 +86,7 @@
 <div class="main-wrapper">
     <div class="sidebar">
         <div class="panel">
-            <h3>Plaat (MDF)</h3>
+            <h3>Plaat</h3>
             <div class="input-row">
                 <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2500" oninput="saveAndRun()"></div>
                 <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1220" oninput="saveAndRun()"></div>
@@ -142,11 +129,11 @@
         document.querySelectorAll('.piece-box').forEach(box => {
             data.pieces.push({ w: box.querySelector('.pW').value, h: box.querySelector('.pH').value, qty: box.querySelector('.pQty').value });
         });
-        localStorage.setItem('precisionCut_MDF', JSON.stringify(data));
+        localStorage.setItem('precisionCut_MDF_Rest', JSON.stringify(data));
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('precisionCut_MDF');
+        const saved = localStorage.getItem('precisionCut_MDF_Rest');
         if (!saved) { addPiece(1500, 1000, 1); return; }
         const data = JSON.parse(saved);
         document.getElementById('sW').value = data.sW;
@@ -222,7 +209,7 @@
                     
                     let rw = f.w - orient.w, rh = f.h - orient.h;
                     plate.free.splice(bIdx, 1);
-                    // Guillotine Split Logica
+                    
                     if (rw > rh) {
                         if (rw > kerf) plate.free.unshift({x: f.x + orient.w + kerf, y: f.y, w: rw - kerf, h: f.h});
                         if (rh > kerf) plate.free.unshift({x: f.x, y: f.y + orient.h + kerf, w: orient.w, h: rh - kerf});
@@ -254,28 +241,52 @@
             canvas.width = plate.w; canvas.height = plate.h;
             const ctx = canvas.getContext('2d');
 
-            // Achtergrond MDF
-            ctx.fillStyle = "#4a3b2b"; // Donkere zaagsnede kleur
+            // Teken Achtergrond (Zaagsnedes/Afvalbasis)
+            ctx.fillStyle = "#1a1a1a";
             ctx.fillRect(0,0,plate.w, plate.h);
 
+            // 1. Teken Reststukken (Vrije ruimte)
+            plate.free.forEach(f => {
+                if(f.w > 5 && f.h > 5) {
+                    // Achtergrond reststuk
+                    ctx.fillStyle = "#333";
+                    ctx.fillRect(f.x, f.y, f.w, f.h);
+                    
+                    // Arcering reststuk
+                    ctx.strokeStyle = "#444";
+                    ctx.lineWidth = 2;
+                    for(let i = -f.h; i < f.w; i += 40) {
+                        ctx.beginPath();
+                        ctx.moveTo(f.x + i, f.y);
+                        ctx.lineTo(f.x + i + f.h, f.y + f.h);
+                        ctx.stroke();
+                    }
+
+                    // Label reststuk (Maat)
+                    ctx.fillStyle = "#888";
+                    let fs = Math.max(30, Math.min(f.w/8, f.h/6));
+                    ctx.font = `italic ${fs}px sans-serif`;
+                    ctx.textAlign = "center";
+                    ctx.fillText(`${Math.round(f.w)} x ${Math.round(f.h)}`, f.x + f.w/2, f.y + f.h/2 + fs/3);
+                }
+            });
+
+            // 2. Teken Onderdelen (MDF)
             plate.parts.forEach(p => {
-                // Deel kleur
                 ctx.fillStyle = p.done ? "#1e4d2b" : "#bc8f4f"; 
                 ctx.fillRect(p.x, p.y, p.w, p.h);
                 
-                // Rand
                 ctx.strokeStyle = p.done ? "#27ae60" : "#8b5a2b";
                 ctx.lineWidth = Math.max(6, plate.w / 350);
                 ctx.strokeRect(p.x, p.y, p.w, p.h);
                 
-                // Maten
                 ctx.fillStyle = p.done ? "#27ae60" : "#ffffff";
                 ctx.shadowColor = "rgba(0,0,0,0.5)";
                 ctx.shadowBlur = 4;
                 let fontSize = Math.max(45, Math.min(p.w/5, p.h/3));
                 ctx.font = `bold ${fontSize}px sans-serif`;
                 ctx.textAlign = "center";
-                ctx.fillText(`${p.w}x${p.h}`, p.x + p.w/2, p.y + p.h/2 + fontSize/3);
+                ctx.fillText(`${p.w} x ${p.h}`, p.x + p.w/2, p.y + p.h/2 + fontSize/3);
                 ctx.shadowBlur = 0;
             });
 
