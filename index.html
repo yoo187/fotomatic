@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrecisionCut PRO | Persistent Tracking</title>
+    <title>PrecisionCut PRO | MDF Edition</title>
     <style>
         :root {
             --accent: #f39c12;
@@ -13,7 +13,9 @@
             --text: #e0e0e0;
             --border: #333;
             --success: #27ae60;
-            --danger: #c0392b;
+            --mdf-brown: #bc8f4f; /* Klassieke MDF kleur */
+            --mdf-light: #d2b48c;
+            --mdf-dark: #8b5a2b;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -56,14 +58,13 @@
         .btn { padding: 12px; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; width: 100%; text-transform: uppercase; font-size: 0.8rem; }
         .btn-add { background: transparent; color: var(--success); border: 2px solid var(--success); margin-bottom: 10px; }
         .btn-calc { background: var(--accent); color: #000; }
-        .btn-del { position: absolute; right: 5px; top: 5px; color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; }
+        .btn-del { position: absolute; right: 5px; top: 5px; color: #e74c3c; background: none; border: none; font-weight: bold; cursor: pointer; }
 
-        #output-view { overflow-x: hidden; }
         .plate-container { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 8px; }
         
         .plate-card { 
-            background: #fff; border-radius: 8px; padding: 10px; color: #000; 
-            margin-bottom: 20px; border: 1px solid #ccc; 
+            background: #2a2a2a; border-radius: 8px; padding: 10px; color: #000; 
+            margin-bottom: 20px; border: 1px solid #444; 
             cursor: zoom-in;
             transform-origin: top left;
             width: 100%;
@@ -74,20 +75,20 @@
             width: 200%;
             z-index: 10;
             cursor: zoom-out;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
         }
 
-        .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 5px; }
-        .plate-num { font-size: 1.1rem; font-weight: 900; }
-        .plate-dim { font-size: 0.8rem; font-weight: 600; }
+        .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; border-bottom: 1px solid #555; padding-bottom: 5px; color: #fff; }
+        .plate-num { font-size: 1.1rem; font-weight: 900; color: var(--accent); }
+        .plate-dim { font-size: 0.8rem; font-weight: 600; opacity: 0.8; }
 
-        canvas { width: 100%; height: auto; background: #eee; display: block; }
+        canvas { width: 100%; height: auto; background: #333; display: block; border-radius: 2px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo">PRECISIONCUT PRO</div>
+    <div class="logo">PRECISIONCUT PRO <span style="font-weight:300; font-size: 0.7rem; color: #888;">MDF-MODE</span></div>
     <div id="stats-container">
         <div class="stat-pill" id="stat-total">0</div>
         <div class="stat-pill" id="stat-plates">0 P</div>
@@ -98,7 +99,7 @@
 <div class="main-wrapper">
     <div class="sidebar">
         <div class="panel">
-            <h3>Plaat Instellingen</h3>
+            <h3>Plaat (MDF)</h3>
             <div class="input-row">
                 <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2500" oninput="saveAndRun()"></div>
                 <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1220" oninput="saveAndRun()"></div>
@@ -111,7 +112,7 @@
             <div id="piece-list"></div>
             <button class="btn btn-add" onclick="addPiece(); saveAndRun();">+ STUK TOEVOEGEN</button>
             <button class="btn btn-calc" onclick="runEngine()">🚀 BEREKEN PLAN</button>
-            <button class="btn" style="background:none; color:#888; font-size:0.6rem; margin-top:10px;" onclick="resetDoneState()">RESET AFGEVINCKTE STUKKEN</button>
+            <button class="btn" style="background:none; color:#666; font-size:0.6rem; margin-top:10px;" onclick="resetDoneState()">RESET VINKJES</button>
         </div>
     </div>
     <div id="output-view"></div>
@@ -120,18 +121,13 @@
 <script>
     let currentPlates = [];
     let zoomedId = null;
-    let doneRegistry = new Set(); // Slaat unieke ID's op van voltooide stukken
+    let doneRegistry = new Set();
 
-    function saveAndRun() { 
-        saveToStorage(); 
-        runEngine(); 
-    }
+    function saveAndRun() { saveToStorage(); runEngine(); }
 
     function resetDoneState() {
         if(confirm("Alle vinkjes verwijderen?")) {
-            doneRegistry.clear();
-            saveToStorage();
-            runEngine();
+            doneRegistry.clear(); saveToStorage(); runEngine();
         }
     }
 
@@ -141,31 +137,22 @@
             sH: document.getElementById('sH').value,
             kerf: document.getElementById('kerf').value,
             pieces: [],
-            doneItems: Array.from(doneRegistry) // Sla de set op als array
+            doneItems: Array.from(doneRegistry)
         };
         document.querySelectorAll('.piece-box').forEach(box => {
-            data.pieces.push({
-                w: box.querySelector('.pW').value,
-                h: box.querySelector('.pH').value,
-                qty: box.querySelector('.pQty').value
-            });
+            data.pieces.push({ w: box.querySelector('.pW').value, h: box.querySelector('.pH').value, qty: box.querySelector('.pQty').value });
         });
-        localStorage.setItem('precisionCut_FullState', JSON.stringify(data));
+        localStorage.setItem('precisionCut_MDF', JSON.stringify(data));
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('precisionCut_FullState');
-        if (!saved) { 
-            addPiece(1000, 1500, 1); 
-            return; 
-        }
+        const saved = localStorage.getItem('precisionCut_MDF');
+        if (!saved) { addPiece(1500, 1000, 1); return; }
         const data = JSON.parse(saved);
         document.getElementById('sW').value = data.sW;
         document.getElementById('sH').value = data.sH;
         document.getElementById('kerf').value = data.kerf;
         if(data.doneItems) doneRegistry = new Set(data.doneItems);
-        
-        document.getElementById('piece-list').innerHTML = '';
         data.pieces.forEach(p => addPiece(p.w, p.h, p.qty));
         runEngine();
     }
@@ -194,17 +181,13 @@
             let w = parseInt(box.querySelector('.pW').value) || 0;
             let h = parseInt(box.querySelector('.pH').value) || 0;
             const qty = parseInt(box.querySelector('.pQty').value) || 0;
-
-            if(w > 0 && h > 0 && qty > 0) {
-                let longSide = Math.max(w, h);
-                let shortSide = Math.min(w, h);
-                let maxPlate = Math.max(sW, sH);
-
+            if(w > 0 && h > 0) {
                 for(let q=0; q<qty; q++) {
-                    let rem = longSide;
+                    let rem = Math.max(w,h);
+                    let staticD = Math.min(w,h);
                     while(rem > 0) {
-                        let part = Math.min(rem, maxPlate);
-                        pool.push({w: part, h: shortSide, area: part * shortSide});
+                        let part = Math.min(rem, Math.max(sW, sH));
+                        pool.push({w: part, h: staticD, area: part * staticD});
                         rem -= part;
                     }
                 }
@@ -219,41 +202,33 @@
             let plate = { w: sW, h: sH, parts: [], free: [{x:0, y:0, w:sW, h:sH}] };
             for(let i=0; i < items.length; i++) {
                 let item = items[i];
-                let bestIdx = -1, orientation = null;
+                let bIdx = -1, orient = null;
 
                 for(let j=0; j < plate.free.length; j++) {
                     let f = plate.free[j];
-                    let fits = [{w: item.w, h: item.h}, {w: item.h, h: item.w}];
-                    for(let opt of fits) {
-                        if(opt.w <= f.w && opt.h <= f.h) {
-                            bestIdx = j; orientation = opt; break;
+                    let opts = [{w: item.w, h: item.h}, {w: item.h, h: item.w}];
+                    for(let o of opts) {
+                        if(o.w <= f.w && o.h <= f.h) {
+                            bIdx = j; orient = o; break;
                         }
                     }
-                    if(bestIdx !== -1) break;
+                    if(bIdx !== -1) break;
                 }
 
-                if(bestIdx !== -1) {
-                    let f = plate.free[bestIdx];
-                    // Genereer Uniek ID voor dit specifieke stuk op dit plan
-                    const pIdx = currentPlates.length;
-                    const pieceId = `p${pIdx}-x${f.x}-y${f.y}-w${orientation.w}-h${orientation.h}`;
+                if(bIdx !== -1) {
+                    let f = plate.free[bIdx];
+                    const id = `mdf-${currentPlates.length}-${f.x}-${f.y}-${orient.w}-${orient.h}`;
+                    plate.parts.push({ id, x: f.x, y: f.y, w: orient.w, h: orient.h, done: doneRegistry.has(id) });
                     
-                    plate.parts.push({ 
-                        id: pieceId,
-                        x: f.x, y: f.y, 
-                        w: orientation.w, h: orientation.h, 
-                        done: doneRegistry.has(pieceId) 
-                    });
-                    
-                    let remW = f.w - orientation.w;
-                    let remH = f.h - orientation.h;
-                    plate.free.splice(bestIdx, 1);
-                    if (remW > remH) {
-                        if (remW > kerf) plate.free.unshift({x: f.x + orientation.w + kerf, y: f.y, w: remW - kerf, h: f.h});
-                        if (remH > kerf) plate.free.unshift({x: f.x, y: f.y + orientation.h + kerf, w: orientation.w, h: remH - kerf});
+                    let rw = f.w - orient.w, rh = f.h - orient.h;
+                    plate.free.splice(bIdx, 1);
+                    // Guillotine Split Logica
+                    if (rw > rh) {
+                        if (rw > kerf) plate.free.unshift({x: f.x + orient.w + kerf, y: f.y, w: rw - kerf, h: f.h});
+                        if (rh > kerf) plate.free.unshift({x: f.x, y: f.y + orient.h + kerf, w: orient.w, h: rh - kerf});
                     } else {
-                        if (remH > kerf) plate.free.unshift({x: f.x, y: f.y + orientation.h + kerf, w: f.w, h: remH - kerf});
-                        if (remW > kerf) plate.free.unshift({x: f.x + orientation.w + kerf, y: f.y, w: remW - kerf, h: orientation.h});
+                        if (rh > kerf) plate.free.unshift({x: f.x, y: f.y + orient.h + kerf, w: f.w, h: rh - kerf});
+                        if (rw > kerf) plate.free.unshift({x: f.x + orient.w + kerf, y: f.y, w: rw - kerf, h: orient.h});
                     }
                     items.splice(i, 1); i--;
                 }
@@ -273,45 +248,50 @@
             container.className = 'plate-container';
             const card = document.createElement('div');
             card.className = 'plate-card' + (zoomedId === idx ? ' zoomed' : '');
-            card.innerHTML = `<div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}</span></div>`;
+            card.innerHTML = `<div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}mm</span></div>`;
             
             const canvas = document.createElement('canvas');
             canvas.width = plate.w; canvas.height = plate.h;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = "#f9f9f9";
+
+            // Achtergrond MDF
+            ctx.fillStyle = "#4a3b2b"; // Donkere zaagsnede kleur
             ctx.fillRect(0,0,plate.w, plate.h);
 
             plate.parts.forEach(p => {
-                ctx.fillStyle = p.done ? "#e8f6ef" : "#ffffff";
+                // Deel kleur
+                ctx.fillStyle = p.done ? "#1e4d2b" : "#bc8f4f"; 
                 ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.strokeStyle = p.done ? "#27ae60" : "#000";
-                ctx.lineWidth = Math.max(5, plate.w / 400);
+                
+                // Rand
+                ctx.strokeStyle = p.done ? "#27ae60" : "#8b5a2b";
+                ctx.lineWidth = Math.max(6, plate.w / 350);
                 ctx.strokeRect(p.x, p.y, p.w, p.h);
                 
-                ctx.fillStyle = p.done ? "#27ae60" : "#000";
+                // Maten
+                ctx.fillStyle = p.done ? "#27ae60" : "#ffffff";
+                ctx.shadowColor = "rgba(0,0,0,0.5)";
+                ctx.shadowBlur = 4;
                 let fontSize = Math.max(45, Math.min(p.w/5, p.h/3));
                 ctx.font = `bold ${fontSize}px sans-serif`;
                 ctx.textAlign = "center";
                 ctx.fillText(`${p.w}x${p.h}`, p.x + p.w/2, p.y + p.h/2 + fontSize/3);
+                ctx.shadowBlur = 0;
             });
 
             card.onclick = (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const x = (e.clientX - rect.left) * (plate.w / rect.width);
                 const y = (e.clientY - rect.top) * (plate.h / rect.height);
-                
-                let hitPart = false;
+                let hit = false;
                 plate.parts.forEach(p => {
                     if(x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) {
                         p.done = !p.done;
-                        if(p.done) doneRegistry.add(p.id);
-                        else doneRegistry.delete(p.id);
-                        hitPart = true;
-                        saveToStorage(); // Direct opslaan na wijziging vinkje
+                        if(p.done) doneRegistry.add(p.id); else doneRegistry.delete(p.id);
+                        hit = true; saveToStorage();
                     }
                 });
-                
-                if(!hitPart) zoomedId = (zoomedId === idx) ? null : idx;
+                if(!hit) zoomedId = (zoomedId === idx) ? null : idx;
                 render();
             };
 
