@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrecisionCut PRO | Zoom & Split</title>
+    <title>PrecisionCut PRO | 200% Zoom Edition</title>
     <style>
         :root {
             --accent: #f39c12;
@@ -58,27 +58,33 @@
         .btn-calc { background: var(--accent); color: #000; }
         .btn-del { position: absolute; right: 5px; top: 5px; color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; }
 
-        /* --- ZOOM CSS --- */
+        /* --- 200% ZOOM CSS --- */
+        #output-view { overflow-x: hidden; }
+        
         .plate-card { 
             background: #fff; border-radius: 8px; padding: 10px; color: #000; 
-            margin-bottom: 20px; border: 1px solid #ccc; position: relative;
-            cursor: zoom-in; transition: transform 0.2s;
+            margin-bottom: 20px; border: 1px solid #ccc; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: zoom-in;
+            transform-origin: top left;
+            width: 100%;
+            position: relative;
         }
 
         .plate-card.zoomed {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 5000; margin: 0; border-radius: 0; overflow: auto;
-            background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center;
+            width: 200%; /* Maak de kaart fysiek 200% breed */
+            transform: none; /* Geen schaal, maar echte breedte voor scrollability */
+            z-index: 10;
             cursor: zoom-out;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 40px; /* Extra ruimte omdat de kaart groter is */
         }
 
-        .plate-card.zoomed canvas {
-            max-width: 95%; max-height: 90%; width: auto; height: auto;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5); border: 5px solid #fff;
-        }
-
-        .plate-card.zoomed .plate-info {
-            position: absolute; top: 20px; left: 20px; color: #fff; border-bottom-color: #fff;
+        .plate-container {
+            width: 100%;
+            overflow-x: auto; /* Zorgt dat je in de zoom kunt scrollen */
+            margin-bottom: 15px;
+            border-radius: 8px;
         }
 
         .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 5px; }
@@ -86,7 +92,7 @@
         .plate-dim { font-size: 0.8rem; font-weight: 600; }
 
         canvas { width: 100%; height: auto; background: #eee; display: block; }
-        .split-tag { font-size: 0.6rem; color: var(--accent); font-weight: bold; margin-top: 4px; }
+        .zoom-hint { font-size: 0.65rem; color: #666; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -103,7 +109,7 @@
 <div class="main-wrapper">
     <div class="sidebar">
         <div class="panel">
-            <h3>Plaat</h3>
+            <h3>Plaat Instellingen</h3>
             <div class="input-row">
                 <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2500" oninput="saveAndRun()"></div>
                 <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1250" oninput="saveAndRun()"></div>
@@ -115,14 +121,17 @@
             <h3>Stukken</h3>
             <div id="piece-list"></div>
             <button class="btn btn-add" onclick="addPiece(); saveAndRun();">+ TOEVOEGEN</button>
-            <button class="btn btn-calc" onclick="runEngine()">🚀 UPDATE</button>
+            <button class="btn btn-calc" onclick="runEngine()">🚀 UPDATE PLAN</button>
         </div>
     </div>
-    <div id="output-view"></div>
+    <div id="output-view-wrapper">
+        <div id="output-view"></div>
+    </div>
 </div>
 
 <script>
     let currentPlates = [];
+    let zoomedId = null;
 
     function saveAndRun() { saveToStorage(); runEngine(); }
 
@@ -140,11 +149,11 @@
                 qty: box.querySelector('.pQty').value
             });
         });
-        localStorage.setItem('precisionCut_Final', JSON.stringify(data));
+        localStorage.setItem('precisionCut_Zoom200', JSON.stringify(data));
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('precisionCut_Final');
+        const saved = localStorage.getItem('precisionCut_Zoom200');
         if (!saved) { addPiece(2800, 50, 1); return; }
         const data = JSON.parse(saved);
         document.getElementById('sW').value = data.sW;
@@ -186,11 +195,11 @@
                     let longSide = Math.max(w, h);
                     let shortSide = Math.min(w, h);
                     for(let q=0; q<qty; q++) {
-                        let remaining = longSide;
-                        while(remaining > 0) {
-                            let part = Math.min(remaining, maxPlateDim);
+                        let rem = longSide;
+                        while(rem > 0) {
+                            let part = Math.min(rem, maxPlateDim);
                             pool.push({w: part, h: shortSide, area: part * shortSide});
-                            remaining -= part;
+                            rem -= part;
                         }
                     }
                 } else {
@@ -241,13 +250,19 @@
 
     function render() {
         const view = document.getElementById('output-view');
-        const zoomIdx = Array.from(document.querySelectorAll('.plate-card')).findIndex(c => c.classList.contains('zoomed'));
         view.innerHTML = '';
         
         currentPlates.forEach((plate, idx) => {
+            const container = document.createElement('div');
+            container.className = 'plate-container';
+            
             const card = document.createElement('div');
-            card.className = 'plate-card' + (idx === zoomIdx ? ' zoomed' : '');
-            card.innerHTML = `<div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}</span></div>`;
+            card.className = 'plate-card' + (zoomedId === idx ? ' zoomed' : '');
+            card.id = 'plate-' + idx;
+            card.innerHTML = `
+                <div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}</span></div>
+                <div class="zoom-hint">Tik voor 200% zoom / Vinkje</div>
+            `;
             
             const canvas = document.createElement('canvas');
             canvas.width = plate.w; canvas.height = plate.h;
@@ -257,11 +272,11 @@
                 ctx.fillStyle = p.done ? "#e8f6ef" : "#ffffff";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
                 ctx.strokeStyle = p.done ? "#27ae60" : "#000";
-                ctx.lineWidth = Math.max(5, plate.w / 350);
+                ctx.lineWidth = Math.max(6, plate.w / 300);
                 ctx.strokeRect(p.x, p.y, p.w, p.h);
                 
                 ctx.fillStyle = p.done ? "#27ae60" : "#000";
-                let size = Math.max(35, Math.min(p.w/5, p.h/3));
+                let size = Math.max(40, Math.min(p.w/5, p.h/3));
                 ctx.font = `bold ${size}px sans-serif`;
                 ctx.textAlign = "center";
                 ctx.fillText(`${p.w}x${p.h}`, p.x + p.w/2, p.y + p.h/2 + size/3);
@@ -272,22 +287,22 @@
                 const x = (e.clientX - rect.left) * (plate.w / rect.width);
                 const y = (e.clientY - rect.top) * (plate.h / rect.height);
                 
-                let hit = false;
+                let hitPart = false;
                 plate.parts.forEach(p => {
                     if(x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) {
-                        p.done = !p.done; hit = true;
+                        p.done = !p.done; hitPart = true;
                     }
                 });
                 
-                if(!hit) {
-                    card.classList.toggle('zoomed');
-                    document.body.style.overflow = card.classList.contains('zoomed') ? 'hidden' : 'auto';
+                if(!hitPart) {
+                    zoomedId = (zoomedId === idx) ? null : idx;
                 }
                 render();
             };
 
             card.appendChild(canvas);
-            view.appendChild(card);
+            container.appendChild(card);
+            view.appendChild(container);
         });
 
         let t = 0, d = 0;
