@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrecisionCut PRO | 200% Zoom Edition</title>
+    <title>PrecisionCut PRO | Persistent Tracking</title>
     <style>
         :root {
             --accent: #f39c12;
@@ -58,13 +58,12 @@
         .btn-calc { background: var(--accent); color: #000; }
         .btn-del { position: absolute; right: 5px; top: 5px; color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; }
 
-        /* --- 200% ZOOM CSS --- */
         #output-view { overflow-x: hidden; }
+        .plate-container { width: 100%; overflow-x: auto; margin-bottom: 15px; border-radius: 8px; }
         
         .plate-card { 
             background: #fff; border-radius: 8px; padding: 10px; color: #000; 
             margin-bottom: 20px; border: 1px solid #ccc; 
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: zoom-in;
             transform-origin: top left;
             width: 100%;
@@ -72,19 +71,10 @@
         }
 
         .plate-card.zoomed {
-            width: 200%; /* Maak de kaart fysiek 200% breed */
-            transform: none; /* Geen schaal, maar echte breedte voor scrollability */
+            width: 200%;
             z-index: 10;
             cursor: zoom-out;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            margin-bottom: 40px; /* Extra ruimte omdat de kaart groter is */
-        }
-
-        .plate-container {
-            width: 100%;
-            overflow-x: auto; /* Zorgt dat je in de zoom kunt scrollen */
-            margin-bottom: 15px;
-            border-radius: 8px;
         }
 
         .plate-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 5px; }
@@ -92,7 +82,6 @@
         .plate-dim { font-size: 0.8rem; font-weight: 600; }
 
         canvas { width: 100%; height: auto; background: #eee; display: block; }
-        .zoom-hint { font-size: 0.65rem; color: #666; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -112,35 +101,47 @@
             <h3>Plaat Instellingen</h3>
             <div class="input-row">
                 <div class="input-group"><label>L (mm)</label><input type="number" id="sW" value="2500" oninput="saveAndRun()"></div>
-                <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1250" oninput="saveAndRun()"></div>
+                <div class="input-group"><label>B (mm)</label><input type="number" id="sH" value="1220" oninput="saveAndRun()"></div>
             </div>
             <div class="input-group" style="margin-bottom: 15px;">
                 <label>ZAAGSNEDE (mm)</label>
                 <input type="number" id="kerf" value="3.2" step="0.1" oninput="saveAndRun()">
             </div>
-            <h3>Stukken</h3>
+            <h3>Onderdelen</h3>
             <div id="piece-list"></div>
-            <button class="btn btn-add" onclick="addPiece(); saveAndRun();">+ TOEVOEGEN</button>
-            <button class="btn btn-calc" onclick="runEngine()">🚀 UPDATE PLAN</button>
+            <button class="btn btn-add" onclick="addPiece(); saveAndRun();">+ STUK TOEVOEGEN</button>
+            <button class="btn btn-calc" onclick="runEngine()">🚀 BEREKEN PLAN</button>
+            <button class="btn" style="background:none; color:#888; font-size:0.6rem; margin-top:10px;" onclick="resetDoneState()">RESET AFGEVINCKTE STUKKEN</button>
         </div>
     </div>
-    <div id="output-view-wrapper">
-        <div id="output-view"></div>
-    </div>
+    <div id="output-view"></div>
 </div>
 
 <script>
     let currentPlates = [];
     let zoomedId = null;
+    let doneRegistry = new Set(); // Slaat unieke ID's op van voltooide stukken
 
-    function saveAndRun() { saveToStorage(); runEngine(); }
+    function saveAndRun() { 
+        saveToStorage(); 
+        runEngine(); 
+    }
+
+    function resetDoneState() {
+        if(confirm("Alle vinkjes verwijderen?")) {
+            doneRegistry.clear();
+            saveToStorage();
+            runEngine();
+        }
+    }
 
     function saveToStorage() {
         const data = {
             sW: document.getElementById('sW').value,
             sH: document.getElementById('sH').value,
             kerf: document.getElementById('kerf').value,
-            pieces: []
+            pieces: [],
+            doneItems: Array.from(doneRegistry) // Sla de set op als array
         };
         document.querySelectorAll('.piece-box').forEach(box => {
             data.pieces.push({
@@ -149,16 +150,21 @@
                 qty: box.querySelector('.pQty').value
             });
         });
-        localStorage.setItem('precisionCut_Zoom200', JSON.stringify(data));
+        localStorage.setItem('precisionCut_FullState', JSON.stringify(data));
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('precisionCut_Zoom200');
-        if (!saved) { addPiece(2800, 50, 1); return; }
+        const saved = localStorage.getItem('precisionCut_FullState');
+        if (!saved) { 
+            addPiece(1000, 1500, 1); 
+            return; 
+        }
         const data = JSON.parse(saved);
         document.getElementById('sW').value = data.sW;
         document.getElementById('sH').value = data.sH;
         document.getElementById('kerf').value = data.kerf;
+        if(data.doneItems) doneRegistry = new Set(data.doneItems);
+        
         document.getElementById('piece-list').innerHTML = '';
         data.pieces.forEach(p => addPiece(p.w, p.h, p.qty));
         runEngine();
@@ -182,7 +188,6 @@
         const sW = parseInt(document.getElementById('sW').value) || 1;
         const sH = parseInt(document.getElementById('sH').value) || 1;
         const kerf = parseFloat(document.getElementById('kerf').value) || 0;
-        const maxPlateDim = Math.max(sW, sH);
         
         let pool = [];
         document.querySelectorAll('.piece-box').forEach(box => {
@@ -191,19 +196,17 @@
             const qty = parseInt(box.querySelector('.pQty').value) || 0;
 
             if(w > 0 && h > 0 && qty > 0) {
-                if (w > maxPlateDim || h > maxPlateDim) {
-                    let longSide = Math.max(w, h);
-                    let shortSide = Math.min(w, h);
-                    for(let q=0; q<qty; q++) {
-                        let rem = longSide;
-                        while(rem > 0) {
-                            let part = Math.min(rem, maxPlateDim);
-                            pool.push({w: part, h: shortSide, area: part * shortSide});
-                            rem -= part;
-                        }
+                let longSide = Math.max(w, h);
+                let shortSide = Math.min(w, h);
+                let maxPlate = Math.max(sW, sH);
+
+                for(let q=0; q<qty; q++) {
+                    let rem = longSide;
+                    while(rem > 0) {
+                        let part = Math.min(rem, maxPlate);
+                        pool.push({w: part, h: shortSide, area: part * shortSide});
+                        rem -= part;
                     }
-                } else {
-                    for(let i=0; i<qty; i++) pool.push({w: Math.max(w,h), h: Math.min(w,h), area: w*h});
                 }
             }
         });
@@ -216,29 +219,42 @@
             let plate = { w: sW, h: sH, parts: [], free: [{x:0, y:0, w:sW, h:sH}] };
             for(let i=0; i < items.length; i++) {
                 let item = items[i];
-                let bIdx = -1, bO = null, minW = Infinity;
+                let bestIdx = -1, orientation = null;
+
                 for(let j=0; j < plate.free.length; j++) {
                     let f = plate.free[j];
-                    let opts = [{w: item.w, h: item.h}, {w: item.h, h: item.w}];
-                    for(let o of opts) {
-                        if(o.w <= f.w && o.h <= f.h) {
-                            let w = (f.w * f.h) - (o.w * o.h);
-                            if(w < minW) { minW = w; bIdx = j; bO = o; }
+                    let fits = [{w: item.w, h: item.h}, {w: item.h, h: item.w}];
+                    for(let opt of fits) {
+                        if(opt.w <= f.w && opt.h <= f.h) {
+                            bestIdx = j; orientation = opt; break;
                         }
                     }
+                    if(bestIdx !== -1) break;
                 }
-                if(bIdx !== -1) {
-                    let f = plate.free[bIdx];
-                    plate.parts.push({ x: f.x, y: f.y, w: bO.w, h: bO.h, done: false });
-                    let n = [];
-                    if (f.w - bO.w > f.h - bO.h) {
-                        if (f.w - bO.w - kerf > 0) n.push({x: f.x + bO.w + kerf, y: f.y, w: f.w - bO.w - kerf, h: f.h});
-                        if (f.h - bO.h - kerf > 0) n.push({x: f.x, y: f.y + bO.h + kerf, w: bO.w, h: f.h - bO.h - kerf});
+
+                if(bestIdx !== -1) {
+                    let f = plate.free[bestIdx];
+                    // Genereer Uniek ID voor dit specifieke stuk op dit plan
+                    const pIdx = currentPlates.length;
+                    const pieceId = `p${pIdx}-x${f.x}-y${f.y}-w${orientation.w}-h${orientation.h}`;
+                    
+                    plate.parts.push({ 
+                        id: pieceId,
+                        x: f.x, y: f.y, 
+                        w: orientation.w, h: orientation.h, 
+                        done: doneRegistry.has(pieceId) 
+                    });
+                    
+                    let remW = f.w - orientation.w;
+                    let remH = f.h - orientation.h;
+                    plate.free.splice(bestIdx, 1);
+                    if (remW > remH) {
+                        if (remW > kerf) plate.free.unshift({x: f.x + orientation.w + kerf, y: f.y, w: remW - kerf, h: f.h});
+                        if (remH > kerf) plate.free.unshift({x: f.x, y: f.y + orientation.h + kerf, w: orientation.w, h: remH - kerf});
                     } else {
-                        if (f.h - bO.h - kerf > 0) n.push({x: f.x, y: f.y + bO.h + kerf, w: f.w, h: f.h - bO.h - kerf});
-                        if (f.w - bO.w - kerf > 0) n.push({x: f.x + bO.w + kerf, y: f.y, w: f.w - bO.w - kerf, h: bO.h});
+                        if (remH > kerf) plate.free.unshift({x: f.x, y: f.y + orientation.h + kerf, w: f.w, h: remH - kerf});
+                        if (remW > kerf) plate.free.unshift({x: f.x + orientation.w + kerf, y: f.y, w: remW - kerf, h: orientation.h});
                     }
-                    plate.free.splice(bIdx, 1, ...n);
                     items.splice(i, 1); i--;
                 }
             }
@@ -255,31 +271,28 @@
         currentPlates.forEach((plate, idx) => {
             const container = document.createElement('div');
             container.className = 'plate-container';
-            
             const card = document.createElement('div');
             card.className = 'plate-card' + (zoomedId === idx ? ' zoomed' : '');
-            card.id = 'plate-' + idx;
-            card.innerHTML = `
-                <div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}</span></div>
-                <div class="zoom-hint">Tik voor 200% zoom / Vinkje</div>
-            `;
+            card.innerHTML = `<div class="plate-info"><span class="plate-num">PLAAT ${idx+1}</span><span class="plate-dim">${plate.w}x${plate.h}</span></div>`;
             
             const canvas = document.createElement('canvas');
             canvas.width = plate.w; canvas.height = plate.h;
             const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#f9f9f9";
+            ctx.fillRect(0,0,plate.w, plate.h);
 
             plate.parts.forEach(p => {
                 ctx.fillStyle = p.done ? "#e8f6ef" : "#ffffff";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
                 ctx.strokeStyle = p.done ? "#27ae60" : "#000";
-                ctx.lineWidth = Math.max(6, plate.w / 300);
+                ctx.lineWidth = Math.max(5, plate.w / 400);
                 ctx.strokeRect(p.x, p.y, p.w, p.h);
                 
                 ctx.fillStyle = p.done ? "#27ae60" : "#000";
-                let size = Math.max(40, Math.min(p.w/5, p.h/3));
-                ctx.font = `bold ${size}px sans-serif`;
+                let fontSize = Math.max(45, Math.min(p.w/5, p.h/3));
+                ctx.font = `bold ${fontSize}px sans-serif`;
                 ctx.textAlign = "center";
-                ctx.fillText(`${p.w}x${p.h}`, p.x + p.w/2, p.y + p.h/2 + size/3);
+                ctx.fillText(`${p.w}x${p.h}`, p.x + p.w/2, p.y + p.h/2 + fontSize/3);
             });
 
             card.onclick = (e) => {
@@ -290,13 +303,15 @@
                 let hitPart = false;
                 plate.parts.forEach(p => {
                     if(x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) {
-                        p.done = !p.done; hitPart = true;
+                        p.done = !p.done;
+                        if(p.done) doneRegistry.add(p.id);
+                        else doneRegistry.delete(p.id);
+                        hitPart = true;
+                        saveToStorage(); // Direct opslaan na wijziging vinkje
                     }
                 });
                 
-                if(!hitPart) {
-                    zoomedId = (zoomedId === idx) ? null : idx;
-                }
+                if(!hitPart) zoomedId = (zoomedId === idx) ? null : idx;
                 render();
             };
 
